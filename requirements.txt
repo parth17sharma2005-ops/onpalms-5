@@ -7,3 +7,4 @@ chromadb==0.5.7
 numpy==1.26.4
 pandas==2.2.2
 email-validator==2.2.0
+gunicorn==21.2.0
