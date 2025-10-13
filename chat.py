@@ -701,12 +701,28 @@ Are you currently evaluating other WMS solutions? I can do a detailed comparison
             # Layer 2: Generate context-aware sales response
             bot_message = self.get_sales_layer_response(message, extracted_info, session)
             
-            # Only show demo form if user explicitly requests a demo or says yes after a demo suggestion
-            demo_request_words = [
-                'demo', 'schedule demo', 'book demo', 'show me demo', 'see demo', 'want demo', 'yes', 'i want a demo', 'i would like a demo', 'can i get a demo', 'request demo', 'try demo', 'demo please', 'demonstration', 'show me', 'see it', 'try', 'test', 'trial'
+            # Only show demo form if user explicitly requests a demo
+            demo_request_phrases = [
+                'demo', 'schedule demo', 'book demo', 'show me demo', 'see demo', 'want demo', 
+                'i want a demo', 'i would like a demo', 'can i get a demo', 'request demo', 
+                'try demo', 'demo please', 'demonstration', 'book a demo', 'schedule a demo',
+                'sign up for demo', 'get a demo', 'demo session', 'product demo', 'live demo'
             ]
             message_lower = message.lower()
-            show_demo_form = any(word in message_lower for word in demo_request_words)
+            
+            # Check for explicit demo requests (more specific matching)
+            show_demo_form = False
+            for phrase in demo_request_phrases:
+                if phrase in message_lower:
+                    show_demo_form = True
+                    break
+            
+            # Also check for "yes" responses only if the bot recently asked about demo
+            if not show_demo_form and 'yes' in message_lower:
+                # Check if the conversation context suggests this is a demo response
+                recent_context = ' '.join([msg['content'] for msg in session.get('conversation_history', [])[-3:]])
+                if 'demo' in recent_context.lower() or 'demonstration' in recent_context.lower():
+                    show_demo_form = True
             
             # Track negative demo responses to avoid future prompts
             negative_demo_words = ['no demo', 'not interested', 'do not want', "don't want", 'no thanks', 
