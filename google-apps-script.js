@@ -12,8 +12,8 @@
  */
 
 // Replace this with your Google Sheet ID (found in the sheet URL)
-const SHEET_ID = 'YOUR_GOOGLE_SHEET_ID_HERE';
-const SHEET_NAME = 'Demo Requests'; // Name of the sheet tab
+const SHEET_ID = '1kxAbogmt-khwhUzoJI14uKhgANFLP_EuHYQtNKHmVYc';
+const SHEET_NAME = 'Sheet1'; // Name of the sheet tab (change to your actual tab name)
 
 function doPost(e) {
   try {
@@ -26,8 +26,8 @@ function doPost(e) {
     // If sheet doesn't exist, create it with headers
     if (!sheet) {
       const newSheet = SpreadsheetApp.openById(SHEET_ID).insertSheet(SHEET_NAME);
-      newSheet.getRange(1, 1, 1, 5).setValues([
-        ['Timestamp', 'Name', 'Email', 'Phone', 'Source']
+      newSheet.getRange(1, 1, 1, 9).setValues([
+        ['Timestamp', 'Name', 'Email', 'Phone', 'Source', 'Lead Score', 'Stage', 'Signals', 'Touches']
       ]);
       
       // Format header row
@@ -38,20 +38,24 @@ function doPost(e) {
     // Get the sheet (after potential creation)
     const targetSheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
     
-    // Prepare the row data
+    // Prepare the row data with enhanced TOFU fields
     const rowData = [
       data.timestamp || new Date().toLocaleString(),
       data.name || '',
       data.email || '',
       data.phone || '',
-      data.source || 'Website'
+      data.source || 'Website',
+      data.lead_score || 0,
+      data.stage || 'unknown',
+      data.qualification_signals || '',
+      data.touch_count || 0
     ];
     
     // Append the data to the sheet
     targetSheet.appendRow(rowData);
     
     // Auto-resize columns for better readability
-    targetSheet.autoResizeColumns(1, 5);
+    targetSheet.autoResizeColumns(1, 9);
     
     // Return success response
     return ContentService

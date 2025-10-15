@@ -5,8 +5,6 @@ from dotenv import load_dotenv
 from chat import SalesBotRAG
 import json
 import re
-import requests
-from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -19,45 +17,6 @@ chatbot = SalesBotRAG()
 
 # Session storage (in production, use Redis or database)
 sessions = {}
-
-# Google Sheets integration
-GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwJiB_aMzjZyBywk63UW4UwNajFHqOiFlSBJY8A2M0RxjEzvKeLKFuzwFWeu9Bwt4Ml/exec'
-
-def submit_to_google_sheets(name, email, phone, session_data=None):
-    """Submit demo request to Google Sheets with enhanced TOFU data"""
-    try:
-        # Enhanced TOFU data capture
-        lead_score = session_data.get('lead_score', 0) if session_data else 0
-        stage = session_data.get('stage', 'unknown') if session_data else 'unknown'
-        signals = ', '.join(session_data.get('qualification_signals', [])) if session_data else ''
-        touch_count = session_data.get('touch_count', 0) if session_data else 0
-        
-        payload = {
-            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'name': name,
-            'email': email,
-            'phone': phone,
-            'source': 'Localhost Demo Form',
-            'lead_score': lead_score,
-            'stage': stage,
-            'qualification_signals': signals,
-            'touch_count': touch_count,
-            'conversation_length': len(session_data.get('conversation_history', [])) if session_data else 0
-        }
-        
-        response = requests.post(GOOGLE_SCRIPT_URL, json=payload, timeout=10)
-        
-        if response.status_code == 200:
-            result = response.json()
-            print(f"✅ Google Sheets: {result.get('message', 'Success')}")
-            return True
-        else:
-            print(f"❌ Google Sheets error: {response.status_code}")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Google Sheets submission failed: {str(e)}")
-        return False
 
 @app.route('/')
 def index():
@@ -138,21 +97,12 @@ def submit_demo():
             sessions[session_id]['lead_score'] += 30
             sessions[session_id]['stage'] = 'demo_scheduled'
         
-        # Submit to Google Sheets with enhanced TOFU data
-        session_data = sessions.get(session_id, {})
-        sheets_success = submit_to_google_sheets(name, email, phone, session_data)
-        
-        # Log the demo request
+        # In a real application, you would save this to your CRM
         print(f"Demo request: {name} ({email}), Phone: {phone}")
-        if sheets_success:
-            print("✅ Successfully saved to Google Sheets")
-        else:
-            print("⚠️ Google Sheets submission failed, but demo request recorded locally")
         
         return jsonify({
             'success': True,
-            'message': f"Thank you {name}! Your demo request has been submitted to our Google Sheets. Our sales team will contact you at {email} within 24 hours to schedule your personalized PALMS™ demonstration.",
-            'sheets_saved': sheets_success
+            'message': f"Thank you {name}! Your demo request has been submitted. Our sales team will contact you at {email} within 24 hours to schedule your personalized PALMS™ demonstration."
         })
         
     except Exception as e:

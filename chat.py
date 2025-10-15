@@ -679,10 +679,16 @@ Are you currently evaluating other WMS solutions? I can do a detailed comparison
             return self.get_demo_response(message, extracted_info, lead_score, stage)
 
     def get_response(self, message, session):
-        """Main response method using two-layer AI system"""
+        """Main response method using enhanced TOFU two-layer AI system"""
         
-        # Analyze intent and update scoring
+        # TOFU Enhancement: Advanced lead qualification
+        session = self.enhanced_lead_qualification(message, session)
+        
+        # Analyze intent and update scoring (existing logic)
         self.analyze_message_intent(message, session)
+        
+        # TOFU Enhancement: Determine engagement strategy
+        engagement_strategy = self.get_tofu_engagement_strategy(session)
         
         # Check if user is asking for human handoff
         if any(phrase in message.lower() for phrase in ['human', 'person', 'agent', 'representative', 'speak to someone']):
@@ -700,6 +706,12 @@ Are you currently evaluating other WMS solutions? I can do a detailed comparison
             
             # Layer 2: Generate context-aware sales response
             bot_message = self.get_sales_layer_response(message, extracted_info, session)
+            
+            # TOFU Enhancement: Apply conversation flow strategy
+            tofu_response = self.get_tofu_conversation_flow(message, session, engagement_strategy)
+            if tofu_response and engagement_strategy in ['direct_sales', 'nurture_warm']:
+                # Override with TOFU response for high-value leads
+                bot_message = tofu_response
             
             # Only show demo form if user explicitly requests a demo
             demo_request_phrases = [
@@ -735,7 +747,13 @@ Are you currently evaluating other WMS solutions? I can do a detailed comparison
             
             return {
                 'message': bot_message,
-                'show_demo_form': show_demo_form
+                'show_demo_form': show_demo_form,
+                'tofu_data': {
+                    'engagement_strategy': engagement_strategy,
+                    'lead_score': session.get('lead_score', 0),
+                    'qualification_signals': session.get('qualification_signals', []),
+                    'touch_count': session.get('touch_count', 0)
+                }
             }
             
         except Exception as e:
@@ -744,3 +762,126 @@ Are you currently evaluating other WMS solutions? I can do a detailed comparison
                 'message': "I'm experiencing a technical issue right now. Please try asking your question again, or feel free to contact our sales team directly at sales@onpalms.com for immediate assistance.",
                 'show_demo_form': False
             }
+    
+    # TOFU Enhancement Methods
+    def enhanced_lead_qualification(self, message, session):
+        """Enhanced TOFU-based lead qualification"""
+        message_lower = message.lower()
+        
+        # TOFU Qualification Criteria
+        qualification_signals = {
+            'intent_signals': {
+                'high': ['need solution', 'looking for', 'evaluating', 'budget approved', 'decision maker', 'procurement'],
+                'medium': ['interested in', 'want to know', 'considering', 'exploring options'],
+                'low': ['just curious', 'browsing', 'maybe later', 'just looking']
+            },
+            'authority_signals': {
+                'high': ['ceo', 'cto', 'warehouse manager', 'operations director', 'procurement manager'],
+                'medium': ['supervisor', 'team lead', 'analyst', 'coordinator'],
+                'low': ['intern', 'student', 'researcher']
+            },
+            'timeline_signals': {
+                'urgent': ['asap', 'immediately', 'this quarter', 'next month'],
+                'near_term': ['in 3 months', 'this year', 'soon'],
+                'long_term': ['next year', 'future', 'someday']
+            },
+            'budget_signals': {
+                'confirmed': ['budget approved', 'funds allocated', 'ready to purchase'],
+                'exploring': ['budget planning', 'cost analysis', 'roi calculation'],
+                'unclear': ['just researching', 'preliminary']
+            }
+        }
+        
+        # Calculate enhanced qualification score
+        for category, signals in qualification_signals.items():
+            for level, keywords in signals.items():
+                for keyword in keywords:
+                    if keyword in message_lower:
+                        if level == 'high' or level == 'urgent' or level == 'confirmed':
+                            session['lead_score'] = session.get('lead_score', 0) + 25
+                            session['qualification_signals'] = session.get('qualification_signals', [])
+                            session['qualification_signals'].append(f"{category}_{level}")
+                        elif level == 'medium' or level == 'near_term' or level == 'exploring':
+                            session['lead_score'] = session.get('lead_score', 0) + 15
+                        else:
+                            session['lead_score'] = session.get('lead_score', 0) + 5
+        
+        return session
+
+    def get_tofu_engagement_strategy(self, session):
+        """Determine engagement strategy based on TOFU principles"""
+        lead_score = session.get('lead_score', 0)
+        signals = session.get('qualification_signals', [])
+        
+        if lead_score >= 75 or any('high' in signal for signal in signals):
+            return 'direct_sales'  # Ready for demo/sales call
+        elif lead_score >= 40:
+            return 'nurture_warm'  # Provide detailed info, case studies
+        elif lead_score >= 20:
+            return 'nurture_cold'  # Educational content, build trust
+        else:
+            return 'awareness'     # Basic information, qualify further
+
+    def get_tofu_conversation_flow(self, message, session, engagement_strategy):
+        """TOFU-based conversation flow management"""
+        
+        flows = {
+            'awareness': {
+                'touch_1': "I'd love to help you understand warehouse management solutions! Are you currently facing any specific challenges with inventory accuracy, order processing speed, or warehouse efficiency?",
+                'touch_2': "Many businesses struggle with warehouse optimization. PALMS™ helps companies achieve 99.9% inventory accuracy and 40% faster operations. What's your biggest warehouse pain point?",
+                'touch_3': "Based on our conversation, it sounds like you're exploring options. Would it be helpful if I shared some success stories from businesses similar to yours?"
+            },
+            'nurture_cold': {
+                'touch_1': "Great questions! Let me share how PALMS™ specifically addresses those challenges with real measurable results...",
+                'touch_2': "I can see you're evaluating your options carefully. Here's how we compare to other solutions in the market...",
+                'touch_3': "Based on your requirements, I'd like to show you some relevant case studies. What industry are you in?"
+            },
+            'nurture_warm': {
+                'touch_1': "Excellent - you clearly understand the value of a robust WMS. Let me provide specific ROI calculations for businesses like yours...",
+                'touch_2': "Your questions show you're serious about implementation. Would you like to see a customized demo showing how PALMS™ handles your specific requirements?",
+                'touch_3': "I can tell you're ready to move forward. Let's schedule a personalized consultation to map out your implementation timeline and ROI projections."
+            },
+            'direct_sales': {
+                'touch_1': "Perfect! Based on your needs and timeline, PALMS™ is exactly what you're looking for. I'd like to connect you with our senior solutions consultant for a detailed demo.",
+                'touch_2': "Your requirements align perfectly with our enterprise solutions. Let's schedule a technical deep-dive session with our implementation team.",
+                'touch_3': "I can see you're ready to make a decision. Let me arrange a call with our sales director to discuss pricing and implementation timeline."
+            }
+        }
+        
+        touch_count = session.get('touch_count', 0) + 1
+        session['touch_count'] = touch_count
+        
+        # Select appropriate response based on engagement strategy and touch count
+        if engagement_strategy in flows:
+            touch_key = f'touch_{min(touch_count, 3)}'
+            return flows[engagement_strategy].get(touch_key, flows[engagement_strategy]['touch_3'])
+        
+        return None
+
+    def get_qualifying_questions(self, engagement_strategy, session):
+        """Smart qualifying questions based on TOFU stage"""
+        
+        questions = {
+            'awareness': [
+                "What brings you to explore warehouse management solutions today?",
+                "Are you currently using any WMS or still managing inventory manually?",
+                "What's your biggest warehouse challenge right now?"
+            ],
+            'nurture_cold': [
+                "What's your current warehouse size and daily order volume?",
+                "How are you handling inventory accuracy issues currently?",
+                "What's your timeline for implementing a new system?"
+            ],
+            'nurture_warm': [
+                "Who else is involved in this decision-making process?",
+                "What's your budget range for a WMS implementation?",
+                "When would you ideally like to go live with a new system?"
+            ],
+            'direct_sales': [
+                "Would you like to schedule a demo for next week?",
+                "Who would be the key stakeholders for this decision?",
+                "What's your procurement process for software purchases?"
+            ]
+        }
+        
+        return questions.get(engagement_strategy, questions['awareness'])
